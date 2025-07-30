@@ -9,14 +9,17 @@ A simple web interface for the Weekly Sync mentor-mentee reporting system.
 - Login/logout functionality
 
 ### 👨‍🎓 Mentee Features
-- Submit weekly reports with accomplishments, blockers, and aspirations
-- View their own submitted reports
+- Submit weekly reports with accomplishments and aspirations (required)
+- Optionally add blockers/concerns/comments
+- View their latest 2 submitted reports
+- Search and view reports from specific weeks
 - Auto-populated week numbers and years
 
 ### 👨‍🏫 Mentor Features
-- View list of assigned mentees
-- Review all reports from their mentees
-- Summary table and detailed report views
+- View list of assigned mentees with contact details
+- Search and filter reports by mentee (required)
+- Optional week and year filters for specific reports
+- View latest 5 reports per mentee when no specific filters are applied
 
 ## Setup & Usage
 
@@ -53,18 +56,21 @@ streamlit run streamlit_app.py
 3. **Mentees**: Submit weekly reports using the form
 4. **Mentors**: Review mentee progress and reports
 
-## Sample Users (from test_models.py)
+## Sample Users
 
-If you've run `python test_models.py`, you can login with:
+**Important**: The test users from `test_models.py` have placeholder password hashes and cannot be used to login via the Streamlit UI.
 
-**Mentors:**
-- alice.johnson@company.com (password: any password - SHA256 of what you enter)
-- bob.smith@company.com
+**Recommended approach**: 
+1. **Register new users** through the Streamlit registration form
+2. **Create a mentor first** (leave mentor email blank)
+3. **Create mentees** (enter the mentor's email)
 
-**Mentees:**
-- charlie.brown@company.com
-- diana.prince@company.com
-- edward.wilson@company.com
+**Example Registration Flow:**
+1. Register mentor: name="John Mentor", email="john@company.com", password="mypassword" (leave mentor email blank)
+2. Register mentee: name="Jane Mentee", email="jane@company.com", password="mypassword", mentor_email="john@company.com"
+3. Login with the credentials you just created
+
+This ensures proper password hashing and role assignment.
 
 ## Technical Details
 

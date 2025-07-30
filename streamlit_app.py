@@ -39,9 +39,9 @@ def login_page():
     st.title("🤝 Weekly Sync App")
     st.subheader("Login")
     
-    with st.form("login_form"):
-        email = st.text_input("Email")
-        password = st.text_input("Password", type="password")
+    with st.form("login_form", clear_on_submit=False):
+        email = st.text_input("Email", key="login_email")
+        password = st.text_input("Password", type="password", key="login_password")
         submitted = st.form_submit_button("Login")
         
         if submitted:
@@ -54,6 +54,11 @@ def login_page():
                 if data:
                     st.session_state.user = data
                     st.session_state.page = 'dashboard'
+                    # Clear login form
+                    if "login_email" in st.session_state:
+                        del st.session_state["login_email"]
+                    if "login_password" in st.session_state:
+                        del st.session_state["login_password"]
                     st.success("Login successful!")
                     st.rerun()
                 else:
@@ -62,27 +67,27 @@ def login_page():
                 st.error("Please fill in all fields")
     
     st.divider()
-    if st.button("Don't have an account? Register here"):
+    if st.button("Don't have an account? Register here", key="go_to_register"):
         st.session_state.page = 'register'
         st.rerun()
 
 def register_page():
     st.title("📝 Register New User")
     
-    with st.form("register_form"):
+    with st.form("register_form", clear_on_submit=False):
         col1, col2 = st.columns(2)
         
         with col1:
-            name = st.text_input("Full Name")
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
+            name = st.text_input("Full Name", key="reg_name")
+            email = st.text_input("Email", key="reg_email")
+            password = st.text_input("Password", type="password", key="reg_password")
         
         with col2:
-            team_name = st.text_input("Team Name")
-            position = st.text_input("Current Position")
-            location = st.text_input("Office Location")
+            team_name = st.text_input("Team Name", key="reg_team")
+            position = st.text_input("Current Position", key="reg_position")
+            location = st.text_input("Office Location", key="reg_location")
         
-        mentor_email = st.text_input("Mentor Email (leave blank if you're a mentor)")
+        mentor_email = st.text_input("Mentor Email (leave blank if you're a mentor)", key="reg_mentor_email")
         
         submitted = st.form_submit_button("Register")
         
@@ -100,6 +105,10 @@ def register_page():
                 
                 if data:
                     st.success("Registration successful! Please login.")
+                    # Clear the form by resetting session state keys
+                    for key in ["reg_name", "reg_email", "reg_password", "reg_team", "reg_position", "reg_location", "reg_mentor_email"]:
+                        if key in st.session_state:
+                            del st.session_state[key]
                     st.session_state.page = 'login'
                     st.rerun()
                 else:
@@ -107,7 +116,9 @@ def register_page():
             else:
                 st.error("Please fill in all required fields")
     
-    if st.button("← Back to Login"):
+    st.divider()
+    
+    if st.button("← Back to Login", key="back_to_login"):
         st.session_state.page = 'login'
         st.rerun()
 
@@ -119,47 +130,53 @@ def mentee_dashboard():
     with tab1:
         st.subheader("Submit Weekly Report")
         
-        with st.form("report_form"):
+        with st.form("report_form", clear_on_submit=True):
             col1, col2 = st.columns(2)
             with col1:
-                week_number = st.number_input("Week Number", min_value=1, max_value=53, value=datetime.now().isocalendar()[1])
+                week_number = st.number_input("Week Number", min_value=1, max_value=53, value=datetime.now().isocalendar()[1], key="report_week")
             with col2:
-                year = st.number_input("Year", min_value=2020, max_value=2030, value=datetime.now().year)
+                year = st.number_input("Year", min_value=2020, max_value=2030, value=datetime.now().year, key="report_year")
             
             accomplishments = st.text_area("🎯 Accomplishments", 
-                placeholder="What did you accomplish this week?", height=100)
+                placeholder="What did you accomplish this week?", height=100, key="report_accomplishments")
             
-            blockers = st.text_area("🚧 Blockers/Concerns/Comments", 
-                placeholder="Any blockers, concerns, or comments?", height=100)
+            blockers = st.text_area("🚧 Blockers/Concerns/Comments (Optional)", 
+                placeholder="Any blockers, concerns, or comments? (Leave blank if none)", height=100, key="report_blockers")
             
             aspirations = st.text_area("🌟 Aspirations", 
-                placeholder="What are your goals for next week?", height=100)
+                placeholder="What are your goals for next week?", height=100, key="report_aspirations")
             
             submitted = st.form_submit_button("Submit Report")
             
             if submitted:
-                if all([accomplishments, blockers, aspirations]):
+                # Only require accomplishments and aspirations, blockers is optional
+                if accomplishments.strip() and aspirations.strip():
                     data, error = make_api_call(
                         f"/reports/?mentee_id={st.session_state.user['id']}", 
                         "POST", {
                             "week_number": int(week_number),
                             "year": int(year),
                             "accomplishments": accomplishments,
-                            "blockers_concerns_comments": blockers,
+                            "blockers_concerns_comments": blockers if blockers.strip() else "No blockers or concerns reported.",
                             "aspirations": aspirations
                         }
                     )
                     
                     if data:
-                        st.success("Report submitted successfully!")
-                        st.rerun()
+                        # Celebratory effect
+                        st.balloons()
+                        
+                        st.success("✅ Report submitted successfully!")
                     else:
                         st.error(f"Failed to submit report: {error}")
                 else:
-                    st.error("Please fill in all fields")
+                    st.error("Please fill in Accomplishments and Aspirations fields")
     
     with tab2:
-        st.subheader("My Recent Reports")
+        st.subheader("My Reports")
+        
+        # Section 1: Latest 2 Reports
+        st.write("### 📊 Latest Reports")
         
         data, error = make_api_call(f"/reports/mentees/{st.session_state.user['id']}/latest")
         
@@ -176,7 +193,61 @@ def mentee_dashboard():
             else:
                 st.info("No reports submitted yet.")
         else:
-            st.error(f"Failed to load reports: {error}")
+            st.error(f"Failed to load latest reports: {error}")
+        
+        st.divider()
+        
+        # Section 2: Search by Week
+        st.write("### 🔍 Search by Week")
+        
+        col1, col2, col3 = st.columns([2, 2, 1])
+        with col1:
+            search_week = st.number_input("Week Number", min_value=1, max_value=53, 
+                                        value=datetime.now().isocalendar()[1], key="search_week")
+        with col2:
+            search_year = st.number_input("Year", min_value=2020, max_value=2030, 
+                                        value=datetime.now().year, key="search_year")
+        with col3:
+            search_button = st.button("🔍 Search", key="search_report")
+        
+        if search_button:
+            # Check if mentee has a mentor assigned
+            mentor_id = st.session_state.user.get('mentor_id')
+            
+            if not mentor_id:
+                st.error("❌ No mentor assigned. Cannot search reports.")
+            else:
+                # Get all reports from mentor to find this mentee's specific report
+                all_reports, error = make_api_call(f"/reports/mentors/{mentor_id}")
+                
+                if all_reports:
+                    # Filter for this specific mentee and week
+                    specific_report = [r for r in all_reports 
+                                     if r['mentee_id'] == st.session_state.user['id'] 
+                                     and r['week_number'] == search_week 
+                                     and r['year'] == search_year]
+                    
+                    if specific_report:
+                        report = specific_report[0]
+                        st.success(f"✅ Found report for Week {search_week}, {search_year}")
+                        
+                        with st.container():
+                            st.write(f"**📅 Submitted:** {report['submission_date'][:10]}")
+                            st.write("**🎯 Accomplishments:**")
+                            st.write(report['accomplishments'])
+                            st.write("**🚧 Blockers/Concerns:**")
+                            st.write(report['blockers_concerns_comments'])
+                            st.write("**🌟 Aspirations:**")
+                            st.write(report['aspirations'])
+                    else:
+                        st.warning(f"❌ No report found for Week {search_week}, {search_year}")
+                        st.info("💡 Make sure you've submitted a report for this week.")
+                else:
+                    st.error(f"Failed to search reports: {error}")
+        
+        # Show instruction when no search is performed
+        if not search_button:
+            st.info("💡 Use the search above to find reports from specific weeks.")
 
 def mentor_dashboard():
     st.title(f"👨‍🏫 Mentor Dashboard - {st.session_state.user['name']}")
@@ -208,45 +279,110 @@ def mentor_dashboard():
             st.error(f"Failed to load mentees: {error}")
     
     with tab2:
-        st.subheader("All Reports from My Mentees")
+        st.subheader("📊 Reports Search & Review")
         
-        data, error = make_api_call(f"/reports/mentors/{st.session_state.user['id']}")
+        # Get mentees for dropdown
+        mentees_data, mentees_error = make_api_call(f"/users/mentors/{st.session_state.user['id']}/mentees")
         
-        if data:
-            if data:
-                # Create a summary table
-                reports_summary = []
-                for report in data:
-                    reports_summary.append({
-                        "Mentee": report['mentee_name'],
-                        "Week": f"{report['week_number']}, {report['year']}",
-                        "Submitted": report['submission_date'][:10],
-                        "Preview": report['accomplishments'][:50] + "..." if len(report['accomplishments']) > 50 else report['accomplishments']
-                    })
+        if mentees_data:
+            if mentees_data:
+                # Search filters
+                st.write("### 🔍 Filter Reports")
                 
-                df = pd.DataFrame(reports_summary)
-                st.dataframe(df, use_container_width=True)
+                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
                 
-                st.subheader("Detailed Reports")
+                with col1:
+                    # Create mentee options for dropdown
+                    mentee_options = ["Select a mentee..."] + [f"{mentee['name']}" for mentee in mentees_data]
+                    selected_mentee = st.selectbox("👤 Select Mentee", mentee_options, key="mentor_mentee_filter")
                 
-                for report in data:
-                    with st.expander(f"{report['mentee_name']} - Week {report['week_number']}, {report['year']}"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.write(f"**Submitted:** {report['submission_date'][:10]}")
-                        with col2:
-                            st.write(f"**Mentee:** {report['mentee_name']}")
+                with col2:
+                    filter_week = st.number_input("📅 Week (Optional)", min_value=0, max_value=53, 
+                                                value=0, key="mentor_week_filter", 
+                                                help="Leave as 0 to show all weeks")
+                
+                with col3:
+                    filter_year = st.number_input("📆 Year (Optional)", min_value=0, max_value=2030, 
+                                                value=0, key="mentor_year_filter",
+                                                help="Leave as 0 to show all years")
+                
+                with col4:
+                    search_reports = st.button("🔍 Search", key="mentor_search_reports")
+                
+                st.divider()
+                
+                # Handle search
+                if search_reports or selected_mentee != "Select a mentee...":
+                    if selected_mentee == "Select a mentee...":
+                        st.warning("⚠️ Please select a mentee to view reports.")
+                    else:
+                        # Find selected mentee's ID
+                        selected_mentee_data = next((m for m in mentees_data if m['name'] == selected_mentee), None)
                         
-                        st.write("**🎯 Accomplishments:**")
-                        st.write(report['accomplishments'])
-                        st.write("**🚧 Blockers/Concerns:**")
-                        st.write(report['blockers_concerns_comments'])
-                        st.write("**🌟 Aspirations:**")
-                        st.write(report['aspirations'])
+                        if selected_mentee_data:
+                            # Get all reports for this mentor
+                            all_reports, reports_error = make_api_call(f"/reports/mentors/{st.session_state.user['id']}")
+                            
+                            if all_reports:
+                                # Filter reports for selected mentee
+                                mentee_reports = [r for r in all_reports if r['mentee_id'] == selected_mentee_data['id']]
+                                
+                                # Apply week/year filters if specified
+                                if filter_week > 0:
+                                    mentee_reports = [r for r in mentee_reports if r['week_number'] == filter_week]
+                                
+                                if filter_year > 0:
+                                    mentee_reports = [r for r in mentee_reports if r['year'] == filter_year]
+                                
+                                # Sort by submission date (newest first) and limit to 5 if no specific week/year
+                                mentee_reports.sort(key=lambda x: x['submission_date'], reverse=True)
+                                
+                                if filter_week == 0 and filter_year == 0:
+                                    mentee_reports = mentee_reports[:5]  # Latest 5 reports
+                                
+                                if mentee_reports:
+                                    # Show filter summary
+                                    filter_text = f"**{selected_mentee}**"
+                                    if filter_week > 0 or filter_year > 0:
+                                        if filter_week > 0 and filter_year > 0:
+                                            filter_text += f" - Week {filter_week}, {filter_year}"
+                                        elif filter_week > 0:
+                                            filter_text += f" - Week {filter_week}"
+                                        elif filter_year > 0:
+                                            filter_text += f" - Year {filter_year}"
+                                    else:
+                                        filter_text += f" - Latest {len(mentee_reports)} reports"
+                                    
+                                    st.success(f"✅ Found {len(mentee_reports)} report(s) for {filter_text}")
+                                    
+                                    # Display reports
+                                    for report in mentee_reports:
+                                        with st.expander(f"Week {report['week_number']}, {report['year']} - {report['submission_date'][:10]}"):
+                                            col1, col2 = st.columns(2)
+                                            with col1:
+                                                st.write(f"**📅 Submitted:** {report['submission_date'][:10]}")
+                                            with col2:
+                                                st.write(f"**👤 Mentee:** {report['mentee_name']}")
+                                            
+                                            st.write("**🎯 Accomplishments:**")
+                                            st.write(report['accomplishments'])
+                                            st.write("**🚧 Blockers/Concerns:**")
+                                            st.write(report['blockers_concerns_comments'])
+                                            st.write("**🌟 Aspirations:**")
+                                            st.write(report['aspirations'])
+                                else:
+                                    st.warning(f"❌ No reports found for {selected_mentee} with the specified filters.")
+                                    st.info("💡 Try adjusting your search criteria or check if reports have been submitted.")
+                            else:
+                                st.error(f"Failed to load reports: {reports_error}")
+                        else:
+                            st.error("❌ Selected mentee not found.")
+                else:
+                    st.info("💡 Select a mentee above to view their reports. Week and year filters are optional.")
             else:
-                st.info("No reports submitted yet.")
+                st.info("No mentees assigned yet.")
         else:
-            st.error(f"Failed to load reports: {error}")
+            st.error(f"Failed to load mentees: {mentees_error}")
 
 def main():
     # Sidebar
